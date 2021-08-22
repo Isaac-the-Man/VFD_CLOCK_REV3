@@ -42,13 +42,13 @@ Display temperature from the DS3231 IC for two seconds, then return.
 ### SHORT R Press
 Display "HELO", for fun.
 
-### LONG L PRESS
+### LONG L Press
 Enters time-set mode. The entire VFD display will start to blink. You can then modify Hour:Minute, Month.Date, and Year in a sequence of steps with `M` and `R` changing the values and `L` advancing the modified steps. After setting the year, another `L` press with bring you back to normal clock mode with the new set time.
 
-### LONG M PRESS
+### LONG M Press
 Enters edit brightness mode. Press `L` to decrease lumin and `R` to increase. Value ranges from 1 ~ 25. The VFD or the LED will blink based on whatever is the target of the edit. Pressing `M` will advances into the next step (first VFD -> LED -> back to normal clock mode).
 
-### LONG R PRESS
+### LONG R Press
 Enters edit LED mode. Press `L` to loop between LED patterns (single color cycle -> serial color cycle -> off -> single color cycle...). Press `M` to fix the current color (freezes the color in the cycle). Press `R` to return to normal clock mode.
 
 Software and Hardware designed by *Isaac_the_Man*, aka *Yu-Kai "Steven" Wang*.

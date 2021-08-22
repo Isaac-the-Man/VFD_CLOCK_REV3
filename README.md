@@ -19,7 +19,7 @@ An arduino-compatible IVL2-7/5 VFD clock, version 3.1.
 ## Hardware
 - Atmega328P-PU with external 16MHz cyrstal as the MCU.
 - FT232RL for USB to TTL converstion (programming the MCU).
-- DS3231M+TRL as the RTC. Includes a temperature sensing feedback ciruit for tuning the crystal. Error less than a second per year. A CR2032 external power source is used as a back-up power when the USB is not connected.
+- DS3231M+TRL as the RTC. Includes a temperature sensing feedback circuit for tuning the crystal. Error less than a second per year. A CR2032 external power source is used as a back-up power when the USB is not connected.
 - WS2812 NeoPixel RGB LED. A serial and individually-addressable RGB LED.
 - Adjustable boost converter (AP3012KTR, replaceable): Boost voltage up to 25V. Adjustable via a potentiometer. Highly efficient.
 - Adjustable buck converter (ST1S12GR, replaceable): Buck voltage down to 2V. Adjustable via a potentiometer. Highly efficient.

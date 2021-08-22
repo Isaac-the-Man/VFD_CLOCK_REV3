@@ -1,58 +1,67 @@
+/*
+ * IVL2-7/5 VFD CLOCK REV 3.1 SOFTWARE
+ * WRITTEN BY ISAAC_THE_MAN
+ * SEE PROJECT ON https://github.com/Isaac-the-Man/VFD_CLOCK_REV3
+ * LAST UPDATED 8/21/2021
+ * MIT LICENSE
+ */
 #include <DS3231M.h>  // Include the DS3231M RTC library
 #include <Adafruit_NeoPixel.h>  // RGB LED library
 #include <EEPROM.h> // read/write user settings
 
 
 // Setting constants
-int SET_LONG_PRESS_DUR = 2000;  // duration required to be qualified as a long press, in millis.
-int SET_LED_UPDATE_INTERVAL = 50;  // interval for LED to change color, in millis
-int SET_EEPROM_ADDR = 0;
-int SET_EEPROM_KEY_ADDR = 64;
-int SET_EEPROM_KEY = 11;  // for data integrity check
-int SET_LED_FLICKER_INTERVAL = 200;
+const int SET_LONG_PRESS_DUR = 2000;  // duration required to be qualified as a long press, in millis.
+const int SET_LED_UPDATE_INTERVAL = 50;  // interval for LED to change color, in millis
+const int SET_EEPROM_ADDR = 0;
+const int SET_EEPROM_KEY_ADDR = 64;
+const int SET_EEPROM_KEY = 11;  // for data integrity check
+const int SET_LED_FLICKER_INTERVAL = 200;
+const int SET_VFD_FLICKER_INTERVAL = 200;
+const int SET_CLOCK_SHORT_DUR = 2000; // duration of short displays such as date and temperature, in millis.
+const int SET_TEMP_OFFSET = -500; // 100th of degrees
+const int SET_POWER_SAVING_ON_TIME[] = {23, 59};
+const int SET_POWER_SAVING_OFF_TIME[] = {7, 0};
+const int SET_POWER_SAVING_LUMIN = 205;
+const int SET_POWER_SAVING_LED_LUMIN = 15;
 
 // VFD display pin
-int PIN_VFD_DIN = 4;
-int PIN_VFD_PWM = 5;
-int PIN_VFD_LATCH = 7;
-int PIN_VFD_CLK = 8;
+const int PIN_VFD_DIN = 4;
+const int PIN_VFD_PWM = 5;
+const int PIN_VFD_LATCH = 7;
+const int PIN_VFD_CLK = 8;
 
 // Control buttons pin
-int PIN_BTN_L = A2;
-int PIN_BTN_M = A1;
-int PIN_BTN_R = A0;
+const int PIN_BTN_L = A2;
+const int PIN_BTN_M = A1;
+const int PIN_BTN_R = A0;
 
 // RGB LED pin
-int PIN_LED = 13;
+const int PIN_LED = 13;
 
-// Display Number Constants: dot_up, dot_down, segment 1 ~ 7
-int NUM_0[] = {LOW, LOW, HIGH, HIGH, HIGH, LOW, HIGH, HIGH, HIGH};
-int NUM_1[] = {LOW, LOW, LOW, HIGH, LOW, LOW, HIGH, LOW, LOW};
-int NUM_2[] = {LOW, LOW, HIGH, LOW, HIGH, HIGH, HIGH, LOW, HIGH};
-int NUM_3[] = {LOW, LOW, HIGH, HIGH, LOW, HIGH, HIGH, LOW, HIGH};
-int NUM_4[] = {LOW, LOW, LOW, HIGH, LOW, HIGH, HIGH, HIGH, LOW};
-int NUM_5[] = {LOW, LOW, HIGH, HIGH, LOW, HIGH, LOW, HIGH, HIGH};
-int NUM_6[] = {LOW, LOW, HIGH, HIGH, HIGH, HIGH, LOW, HIGH, HIGH};
-int NUM_7[] = {LOW, LOW, LOW, HIGH, LOW, LOW, HIGH, HIGH, HIGH};
-int NUM_8[] = {LOW, LOW, HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, HIGH};
-int NUM_9[] = {LOW, LOW, HIGH, HIGH, LOW, HIGH, HIGH, HIGH, HIGH};
-int NUM_DOT_UP[] = {HIGH, LOW, LOW, LOW, LOW, LOW, LOW, LOW, LOW};
-int NUM_DOT_DOWN[] = {LOW, HIGH, LOW, LOW, LOW, LOW, LOW, LOW, LOW};
-
-// Display Grid Constants: grid 1 ~ 5
-int GRID_1[] = {HIGH, LOW, LOW, LOW, LOW};
-int GRID_2[] = {LOW, HIGH, LOW, LOW, LOW};
-int GRID_3[] = {LOW, LOW, HIGH, LOW, LOW};
-int GRID_4[] = {LOW, LOW, LOW, HIGH, LOW};
-int GRID_5[] = {LOW, LOW, LOW, LOW, HIGH};
+// Display Number Constants: segment 1 ~ 7
+const int NUM_0[] = {HIGH, HIGH, HIGH, LOW, HIGH, HIGH, HIGH};
+const int NUM_1[] = {LOW, HIGH, LOW, LOW, HIGH, LOW, LOW};
+const int NUM_2[] = {HIGH, LOW, HIGH, HIGH, HIGH, LOW, HIGH};
+const int NUM_3[] = {HIGH, HIGH, LOW, HIGH, HIGH, LOW, HIGH};
+const int NUM_4[] = {LOW, HIGH, LOW, HIGH, HIGH, HIGH, LOW};
+const int NUM_5[] = {HIGH, HIGH, LOW, HIGH, LOW, HIGH, HIGH};
+const int NUM_6[] = {HIGH, HIGH, HIGH, HIGH, LOW, HIGH, HIGH};
+const int NUM_7[] = {LOW, HIGH, LOW, LOW, HIGH, HIGH, HIGH};
+const int NUM_8[] = {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, HIGH};
+const int NUM_9[] = {HIGH, HIGH, LOW, HIGH, HIGH, HIGH, HIGH};
+const int ALP_C[] = {HIGH, LOW, HIGH, LOW, LOW, HIGH, HIGH};  //10
+const int ALP_H[] = {LOW, HIGH, HIGH, HIGH, HIGH, HIGH, LOW}; //11
+const int ALP_E[] = {HIGH, LOW, HIGH, HIGH, LOW, HIGH, HIGH}; //12
+const int ALP_L[] = {HIGH, LOW, HIGH, LOW, LOW, HIGH, LOW}; //13
 
 // Time Constants
-int YEAR = 0;
-int MONTH = 1;
-int DATE = 2;
-int HOUR = 3;
-int MIN = 4;
-int SEC = 5;
+const int YEAR = 0;
+const int MONTH = 1;
+const int DATE = 2;
+const int HOUR = 3;
+const int MIN = 4;
+const int SEC = 5;
 
 // state variables
 int STATE_LUMIN = 255;  // VFD brightness level
@@ -63,6 +72,10 @@ int STATE_LED_MODE = 0;
 int STATE_LED_HUE = 0;  // fixed color hue
 bool STATE_LED_FIXED = false; // loop color or not
 int STATE_LED_FLICKER = false;  // flicker mode indicates the user is editing LED related settings
+int STATE_DISPLAY[] = {0, 0, 0, 0, 0}; // digit, digit, colon, digit, digit
+bool STATE_VFD_FLICKER = false; // VFD blink or not
+int STATE_TEMP = 0; // temperature in Celsius
+bool STATE_POWER_SAVING_ON = false;
 
 // button temp variables
 int BTN_VAL_L = LOW;
@@ -77,6 +90,13 @@ unsigned long BTN_RISIN_TIME_R = 0; // timestamp of rising edge
 bool BTN_LOCK_L = false;
 bool BTN_LOCK_M = false;
 bool BTN_LOCK_R = false;
+
+// Clock mode temp variables
+int CLOCK_MODE = 0; // 0 for normal clock; 1 for Date; 2 for Year; 3 for Hello
+int CLOCK_DATE_YEAR_MODE = 0; // 0 for DATE, 1 for YEAR
+unsigned long CLOCK_DATE_YEAR_SHOW_TIME = 0;
+unsigned long CLOCK_TEMP_TIME = 0;
+unsigned long CLOCK_HELLO_TIME = 0;
 
 // Time Edit Mode temp variables
 int TIME_SET_LEVEL = 0; // indicates which part of the time is in on display: 0 for HH::mm, 1 for Date, 2 for Year
@@ -94,6 +114,15 @@ uint32_t color2 = 0;
 uint32_t color3 = 0;
 uint32_t color4 = 0;
 
+// VFD display temp variables
+int VFD_TEMP[14] = {0}; // initialize to all 0
+unsigned long VFD_LAST_FLICKER = 0;
+bool VFD_FLICKER_ON = true;
+
+// Power saving temp variables
+int POWER_SAVING_PREV_LUMIN = 245;
+int POWER_SAVING_PREV_LED_LUMIN = 5;
+
 // EEPROM data
 struct ClockConfig {
   int lumin;
@@ -101,6 +130,9 @@ struct ClockConfig {
   int led_mode;
   int led_hue;
   bool led_fixed;
+  bool power_saving_on;
+  int power_saving_prev_lumin;
+  int power_saving_prev_led_lumin;
 };
 
 // RTC setup
@@ -116,19 +148,19 @@ void setup() {
   pinMode(PIN_VFD_DIN, OUTPUT);
   pinMode(PIN_VFD_LATCH, OUTPUT);
   pinMode(PIN_VFD_CLK, OUTPUT);
+  // Setup Control buttons
+  pinMode(PIN_BTN_L, INPUT);
+  pinMode(PIN_BTN_M, INPUT);
+  pinMode(PIN_BTN_R, INPUT);
   // load settings
   loadConfig();
   // Setup RGB LED
   strip.begin();
   strip.show();
   strip.setBrightness(STATE_LED_LUMIN);
-  // Setup Control buttons
-  pinMode(PIN_BTN_L, INPUT);
-  pinMode(PIN_BTN_M, INPUT);
-  pinMode(PIN_BTN_R, INPUT);
   // Connect to RTC
   while (!DS3231M.begin()) {
-    Serial.println(F("Unable to find RTC DS3231M. Checking again in 3s."));
+    Serial.println(F("FATAL ERROR: Unable to find RTC DS3231M. Checking again in 3s."));
     delay(3000);
   }
 }
@@ -136,18 +168,22 @@ void setup() {
 void loop() {
   // load time from RTC
   getTime();
+  powerSaving();
   // Controls
   detectControls();
+  // VFD display
+  writeDisplay();
+  flashDisplay();
   // RGB LED
   LEDDisplay();
   // Logging
-  logMode();
-  logLumin();
+  //  logMode();
+  //  logLumin();
   //  logTime();
   //  logTempTime();
   //  logLEDMode();
   //  logBTN();
-  delay(10);
+  //  logDisplay();
 }
 
 // Debugger
@@ -185,9 +221,17 @@ void logLEDMode() {
   Serial.print("LED MODE: ");
   Serial.println(STATE_LED_MODE);
 }
+void logDisplay() {
+  Serial.print("DISPLAY: ");
+  for (int i = 0; i < 4; ++i) {
+    Serial.print(STATE_DISPLAY[i]);
+  }
+  Serial.println(STATE_DISPLAY[4]);
+}
 
 // Read RTC time
 void getTime() {
+  // read time
   DateTime currentTime = DS3231M.now();
   STATE_TIME[YEAR] = currentTime.year();
   STATE_TIME[MONTH] = currentTime.month();
@@ -195,31 +239,350 @@ void getTime() {
   STATE_TIME[HOUR] = currentTime.hour();
   STATE_TIME[MIN] = currentTime.minute();
   STATE_TIME[SEC] = currentTime.second();
+  // read temperature
+  STATE_TEMP = DS3231M.temperature() + SET_TEMP_OFFSET;
 }
 // Push STATE_TIME to RTC
 void pushTime() {
   DS3231M.adjust(DateTime(TIME_TEMP_TIME[YEAR], TIME_TEMP_TIME[MONTH], TIME_TEMP_TIME[DATE], TIME_TEMP_TIME[HOUR], TIME_TEMP_TIME[MIN], TIME_TEMP_TIME[SEC]));
 }
+// check power saving status
+void powerSaving() {
+  if (!STATE_POWER_SAVING_ON && STATE_TIME[HOUR] == SET_POWER_SAVING_ON_TIME[0] && STATE_TIME[MIN] == SET_POWER_SAVING_ON_TIME[1]) {
+    // turn on power saving
+    Serial.println(F("Power saving on."));
+    STATE_POWER_SAVING_ON = true;
+    POWER_SAVING_PREV_LUMIN = STATE_LUMIN;
+    POWER_SAVING_PREV_LED_LUMIN = STATE_LED_LUMIN;
+    STATE_LUMIN = SET_POWER_SAVING_LUMIN;
+    STATE_LED_LUMIN = SET_POWER_SAVING_LED_LUMIN;
+    putConfig();
+  }
+  if (STATE_POWER_SAVING_ON && STATE_TIME[HOUR] == SET_POWER_SAVING_OFF_TIME[0] && STATE_TIME[MIN] == SET_POWER_SAVING_OFF_TIME[1]) {
+    // turn off power saving
+    Serial.println(F("Power saving off."));
+    STATE_POWER_SAVING_ON = false;
+    STATE_LUMIN = POWER_SAVING_PREV_LUMIN;
+    STATE_LED_LUMIN = POWER_SAVING_PREV_LED_LUMIN;
+    putConfig();
+  }
+}
 
 // display functions
 /*
-    Steps:
-    1. Clock in data on rising edge
-    2. Latch out all data on falling edge
-    3. PWM Blank pin to control brightness
+   Determines what to display base on STATE vars
 */
-void flashDisplay(int seq[]) {
+void writeDisplay() {
+  switch (STATE_MODE) {
+    case 0:
+      // normal clock mode, show clock
+      switch (CLOCK_MODE) {
+        case 0:
+          // show normal clock
+          STATE_DISPLAY[0] = STATE_TIME[HOUR] / 10;
+          STATE_DISPLAY[1] = STATE_TIME[HOUR] % 10;
+          STATE_DISPLAY[2] = STATE_TIME[SEC] % 2 == 0 ? 0 : -1;  // only show colon at even seconds
+          STATE_DISPLAY[3] = STATE_TIME[MIN] / 10;
+          STATE_DISPLAY[4] = STATE_TIME[MIN] % 10;
+          break;
+        case 1:
+          // show date and year
+          if (millis() - CLOCK_DATE_YEAR_SHOW_TIME >= SET_CLOCK_SHORT_DUR) {
+            // switch state
+            CLOCK_DATE_YEAR_MODE += 1;
+            CLOCK_DATE_YEAR_SHOW_TIME = millis(); // timestamp of mode transition
+          }
+          switch (CLOCK_DATE_YEAR_MODE) {
+            case 0:
+              // show date
+              STATE_DISPLAY[0] = STATE_TIME[MONTH] / 10;
+              STATE_DISPLAY[1] = STATE_TIME[MONTH] % 10;
+              STATE_DISPLAY[2] = 2;  // only show bottom colon
+              STATE_DISPLAY[3] = STATE_TIME[DATE] / 10;
+              STATE_DISPLAY[4] = STATE_TIME[DATE] % 10;
+              break;
+            case 1:
+              // show year
+              STATE_DISPLAY[0] = STATE_TIME[YEAR] / 1000;
+              STATE_DISPLAY[1] = STATE_TIME[YEAR] % 1000 / 100;
+              STATE_DISPLAY[2] = -1;  // turn off colon
+              STATE_DISPLAY[3] = STATE_TIME[YEAR] % 100 / 10;
+              STATE_DISPLAY[4] = STATE_TIME[YEAR] % 10;
+              break;
+            default:
+              // change back to normal clock mode
+              CLOCK_DATE_YEAR_MODE = 0;
+              CLOCK_MODE = 0;
+              break;
+          }
+          break;
+        case 2:
+          // show temperature
+          if (millis() - CLOCK_TEMP_TIME < SET_CLOCK_SHORT_DUR) {
+            STATE_DISPLAY[0] = STATE_TEMP / 1000;
+            STATE_DISPLAY[1] = STATE_TEMP / 100 % 10;
+            STATE_DISPLAY[2] = 2; // decimal point
+            STATE_DISPLAY[3] = STATE_TEMP / 10 % 10;
+            STATE_DISPLAY[4] = 10;
+          } else {
+            // go back to normal clock mode
+            CLOCK_MODE = 0;
+          }
+          break;
+        case 3:
+          // show HELLO
+          if (millis() - CLOCK_HELLO_TIME < SET_CLOCK_SHORT_DUR) {
+            STATE_DISPLAY[0] = 11;
+            STATE_DISPLAY[1] = 12;
+            STATE_DISPLAY[2] = -1; // decimal point off
+            STATE_DISPLAY[3] = 13;
+            STATE_DISPLAY[4] = 0;
+          } else {
+            // go back to normal clock mode
+            CLOCK_MODE = 0;
+          }
+          break;
+        default:
+          CLOCK_MODE = 0; // defualt
+          break;
+      }
+      STATE_VFD_FLICKER = false;
+      break;
+    case 1:
+      // time edit mode, blink clock
+      switch (TIME_SET_LEVEL) {
+        case 0:
+          // edit time
+          STATE_DISPLAY[0] = TIME_TEMP_TIME[HOUR] / 10;
+          STATE_DISPLAY[1] = TIME_TEMP_TIME[HOUR] % 10;
+          STATE_DISPLAY[2] = 0; // turn on both colon
+          STATE_DISPLAY[3] = TIME_TEMP_TIME[MIN] / 10;
+          STATE_DISPLAY[4] = TIME_TEMP_TIME[MIN] % 10;
+          break;
+        case 1:
+          // edit date
+          STATE_DISPLAY[0] = TIME_TEMP_TIME[MONTH] / 10;
+          STATE_DISPLAY[1] = TIME_TEMP_TIME[MONTH] % 10;
+          STATE_DISPLAY[2] = 2;  // only show bottom colon
+          STATE_DISPLAY[3] = TIME_TEMP_TIME[DATE] / 10;
+          STATE_DISPLAY[4] = TIME_TEMP_TIME[DATE] % 10;
+          break;
+        case 2:
+          // edit year
+          STATE_DISPLAY[0] = TIME_TEMP_TIME[YEAR] / 1000;
+          STATE_DISPLAY[1] = TIME_TEMP_TIME[YEAR] % 1000 / 100;
+          STATE_DISPLAY[2] = -1;  // turn off colon
+          STATE_DISPLAY[3] = TIME_TEMP_TIME[YEAR] % 100 / 10;
+          STATE_DISPLAY[4] = TIME_TEMP_TIME[YEAR] % 10;
+          break;
+      }
+      STATE_VFD_FLICKER = true;
+      break;
+    case 2:
+      // Lumin mode, display lumin as 0 ~ 10
+      if (LUMIN_SET_LEVEL == 0) {  // VFD Lumin
+        STATE_DISPLAY[0] = -1;  // no display
+        STATE_DISPLAY[1] = -1;  // no display
+        STATE_DISPLAY[2] = -1;  // no display
+        STATE_DISPLAY[3] = (25 - (STATE_LUMIN - 5) / 10) / 10;
+        STATE_DISPLAY[4] = (25 - (STATE_LUMIN - 5) / 10) % 10;
+        STATE_VFD_FLICKER = true;
+      } else if (LUMIN_SET_LEVEL == 1) {  // LED Lumin
+        STATE_DISPLAY[0] = -1;  // no display
+        STATE_DISPLAY[1] = -1;  // no display
+        STATE_DISPLAY[2] = -1;  // no display
+        STATE_DISPLAY[3] = (STATE_LED_LUMIN - 5) / 100;
+        STATE_DISPLAY[4] = (STATE_LED_LUMIN - 5) / 10 % 10;
+        STATE_VFD_FLICKER = false;
+      }
+      break;
+    case 3:
+      // LED mode, show normal clock (only LED is blinking)
+      STATE_DISPLAY[0] = STATE_TIME[HOUR] / 10;
+      STATE_DISPLAY[1] = STATE_TIME[HOUR] % 10;
+      STATE_DISPLAY[2] = STATE_TIME[SEC] % 2 == 0 ? 0 : -1;  // only show colon at even seconds
+      STATE_DISPLAY[3] = STATE_TIME[MIN] / 10;
+      STATE_DISPLAY[4] = STATE_TIME[MIN] % 10;
+      STATE_VFD_FLICKER = false;
+      break;
+    default:
+      // reset display state in case it somehow ends up in a bizzare value
+      STATE_MODE = 0;
+      STATE_VFD_FLICKER = false;
+      break;
+  }
+}
+/*
+   Display a single digit
+   Steps:
+   1. Clock in data on rising edge
+   2. Latch out all data on falling edge
+   3. PWM Blank pin to control brightness
+*/
+void flashDigit() {
   digitalWrite(PIN_VFD_LATCH, HIGH);
-  // Clock in data
+  // Clock 14 bits of data
   for (int i = 13; i >= 0; --i) {
-    digitalWrite(PIN_VFD_CLK, LOW);
-    digitalWrite(PIN_VFD_DIN, seq[i]);
-    digitalWrite(PIN_VFD_CLK, HIGH);
+    digitalWrite(PIN_VFD_CLK, LOW); // CLK LOW
+    digitalWrite(PIN_VFD_DIN, VFD_TEMP[i]);  // Serial data
+    digitalWrite(PIN_VFD_CLK, HIGH);  // CLK HIGH
   }
   // Latch data
   digitalWrite(PIN_VFD_LATCH, LOW);
   // PWM brightness control
   analogWrite(PIN_VFD_PWM, STATE_LUMIN);
+}
+/*
+   Control full display by flashing digits real quick.
+   Digits are flashed from left to right.
+   Colon can be flashed with all the digits.
+*/
+void flashDisplay() {
+  if (STATE_VFD_FLICKER) {
+    // update per interval
+    if (millis() - VFD_LAST_FLICKER >= SET_VFD_FLICKER_INTERVAL) {
+      VFD_FLICKER_ON = !VFD_FLICKER_ON; // toggle flicker
+      VFD_LAST_FLICKER = millis();  // save last flicker time
+    }
+    if (!VFD_FLICKER_ON) {
+      // flash clear display
+      analogWrite(PIN_VFD_PWM, 255);  // pull HIGH, which turns off the display
+      return;
+    }
+  }
+  // flash 4 number digits
+  for (int i = 0; i < 4; ++i) {
+    loadDisplaySeq(i, STATE_DISPLAY[i < 2 ? i : i + 1], STATE_DISPLAY[2] == 0 || STATE_DISPLAY[2] == 1, STATE_DISPLAY[2] == 0 || STATE_DISPLAY[2] == 2);
+    flashDigit();
+    delay(5);
+  }
+}
+/*
+   Clean display seq to 0
+*/
+void cleanDisplaySeq() {
+  for (int i = 0; i < 14; ++i) {
+    VFD_TEMP[i] = LOW;
+  }
+}
+/*
+   Helper function for building the right display shift sequence.
+   Sequence should be reversed when displaying since shifiting to the registers starts at the largest index.
+   Shift registers 0 ~ 13 corresponds to GRID_1 ~ 5, DOT_DOWN, DOT_UPPER, SEG_1 ~ 7
+   For grid state, 0: both on, 1: up, 2: bottom
+   "digit" parameter indicates which digit is the render target (0~3)
+*/
+void loadDisplaySeq(int digit, int num, bool dotTop, bool dotBot) {
+  // clear previous data
+  cleanDisplaySeq();
+  if (num == -1) {
+    // leave blank, don't display digit
+    return;
+  }
+  // Load grid
+  switch (digit) {
+    case 0:
+      // first digit
+      VFD_TEMP[4] = HIGH;
+      break;
+    case 1:
+      // second digit
+      VFD_TEMP[3] = HIGH;
+      break;
+    case 2:
+      // third digit
+      VFD_TEMP[1] = HIGH;
+      break;
+    case 3:
+      // fourth digit
+      VFD_TEMP[0] = HIGH;
+      break;
+  }
+  // Check colon grid
+  if (dotTop || dotBot) {
+    // set colon grid HIGH
+    VFD_TEMP[2] = HIGH;
+    // colon anodes
+    if (dotBot) {
+      VFD_TEMP[5] = HIGH;
+    }
+    if (dotTop) {
+      VFD_TEMP[6] = HIGH;
+    }
+  }
+  // Segment anodes (actual display numbers)
+  switch (num) {
+    case 0:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = NUM_0[i];
+      }
+      break;
+    case 1:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = NUM_1[i];
+      }
+      break;
+    case 2:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = NUM_2[i];
+      }
+      break;
+    case 3:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = NUM_3[i];
+      }
+      break;
+    case 4:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = NUM_4[i];
+      }
+      break;
+    case 5:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = NUM_5[i];
+      }
+      break;
+    case 6:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = NUM_6[i];
+      }
+      break;
+    case 7:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = NUM_7[i];
+      }
+      break;
+    case 8:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = NUM_8[i];
+      }
+      break;
+    case 9:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = NUM_9[i];
+      }
+      break;
+    case 10:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = ALP_C[i];
+      }
+      break;
+    case 11:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = ALP_H[i];
+      }
+      break;
+    case 12:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = ALP_E[i];
+      }
+      break;
+    case 13:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = ALP_L[i];
+      }
+      break;
+  }
 }
 
 // control button functions
@@ -305,18 +668,25 @@ void controlClock() {
   }
   // detect short press
   if (!BTN_LOCK_L && BTN_PREV_VAL_L == HIGH && BTN_VAL_L == LOW) {
-    // short L press
+    // short L press, show Date and Year
+    CLOCK_MODE = 1;
+    CLOCK_DATE_YEAR_SHOW_TIME = millis();
+    CLOCK_DATE_YEAR_MODE = 0;
     Serial.println("SHORT PRESS L");
   } else if (!BTN_LOCK_M && BTN_PREV_VAL_M == HIGH && BTN_VAL_M == LOW) {
-    // short M press
+    // short M press, show temperature (from DS3231)
+    CLOCK_MODE = 2;
+    CLOCK_TEMP_TIME = millis();
     Serial.println("SHORT PRESS M");
   } else if (!BTN_LOCK_R && BTN_PREV_VAL_R == HIGH && BTN_VAL_R == LOW) {
-    // short R press
+    // short R press, display HELLO
+    CLOCK_MODE = 3;
+    CLOCK_HELLO_TIME = millis();
     Serial.println("SHORT PRESS R");
   }
 }
 /*
-
+   Set time
 */
 void controlTime() {
   // determine which part of the time is in on display/edit: 0 for HH::mm, 1 for MM::DD, 2 for Year.
@@ -365,11 +735,11 @@ void controlTime() {
       case 2:
         // YYYY
         if (BTN_PREV_VAL_M == HIGH && BTN_VAL_M == LOW) {
-          // short M press, increase year
-          TIME_TEMP_TIME[YEAR] += 1;
-        } else if (BTN_PREV_VAL_R == HIGH && BTN_VAL_R == LOW) {
-          // short R press, decrease year
+          // short M press, decrease year
           TIME_TEMP_TIME[YEAR] -= 1;
+        } else if (BTN_PREV_VAL_R == HIGH && BTN_VAL_R == LOW) {
+          // short R press, increase year
+          TIME_TEMP_TIME[YEAR] += 1;
         } else if (BTN_PREV_VAL_L == HIGH && BTN_VAL_L == LOW) {
           // reset seconds
           TIME_TEMP_TIME[SEC] = 0;
@@ -400,14 +770,14 @@ void controlLumin() {
     switch (LUMIN_SET_LEVEL) {
       case 0:
         // VFD lumin
-        if (BTN_PREV_VAL_L == HIGH && BTN_VAL_L == LOW) {
+        if (BTN_PREV_VAL_R == HIGH && BTN_VAL_R == LOW) {
           // short press L, decrease lumin
           STATE_LUMIN -= 10;
           if (STATE_LUMIN <= 4) {
             // Cannot go below 5;
             STATE_LUMIN += 10;
           }
-        } else if (BTN_PREV_VAL_R == HIGH && BTN_VAL_R == LOW) {
+        } else if (BTN_PREV_VAL_L == HIGH && BTN_VAL_L == LOW) {
           // short press R, increase lumin
           STATE_LUMIN += 10;
           if (STATE_LUMIN >= 256) {
@@ -599,7 +969,10 @@ void putConfig() {
     STATE_LED_LUMIN,
     STATE_LED_MODE,
     STATE_LED_HUE,
-    STATE_LED_FIXED
+    STATE_LED_FIXED,
+    STATE_POWER_SAVING_ON,
+    POWER_SAVING_PREV_LUMIN,
+    POWER_SAVING_PREV_LED_LUMIN,
   };
   EEPROM.put(SET_EEPROM_ADDR, c);
   // write integrity
@@ -624,5 +997,8 @@ void loadConfig() {
   STATE_LED_MODE = c.led_mode;
   STATE_LED_HUE = c.led_hue;
   STATE_LED_FIXED = c.led_fixed;
+  STATE_POWER_SAVING_ON = c.power_saving_on;
+  POWER_SAVING_PREV_LUMIN = c.power_saving_prev_lumin;
+  POWER_SAVING_PREV_LED_LUMIN = c.power_saving_prev_led_lumin;
   Serial.println(F("Data Loaded"));
 }

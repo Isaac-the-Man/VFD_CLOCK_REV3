@@ -1,6 +1,9 @@
 # VFD_CLOCK_REV3
 An arduino-compatible IVL2-7/5 VFD clock, version 3.1.
 
+![VFD_demo](https://user-images.githubusercontent.com/29915393/130341756-2adb8b7f-e638-4dcc-941b-279ed5508ceb.gif)
+(NOTE: flashing is only seen on camera due to high FPS)
+
 ## Features
 - IVL2-7/5 VFD Display
 - Arduino-compatible (programmable via Arduino IDE)

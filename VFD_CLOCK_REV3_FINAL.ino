@@ -24,6 +24,8 @@ const int SET_POWER_SAVING_ON_TIME[] = {23, 59};
 const int SET_POWER_SAVING_OFF_TIME[] = {7, 0};
 const int SET_POWER_SAVING_LUMIN = 205;
 const int SET_POWER_SAVING_LED_LUMIN = 15;
+const int SET_LED_VALUE = 128;
+const int SET_LED_SATURATION = 128;
 
 // VFD display pin
 const int PIN_VFD_DIN = 4;
@@ -899,7 +901,7 @@ void LEDDisplay() {
         // flicker
         if (!STATE_LED_FLICKER || (STATE_LED_FLICKER && LED_FLICKER_ON)) {
           // turn on LED
-          color1 = strip.gamma32(strip.ColorHSV(STATE_LED_HUE));
+          color1 = strip.gamma32(strip.ColorHSV(STATE_LED_HUE, SET_LED_SATURATION, SET_LED_VALUE));
           strip.fill(color1, 0, strip.numPixels());
         } else {
           // turn off LED
@@ -918,10 +920,10 @@ void LEDDisplay() {
         // color rainbow mode
         if (!STATE_LED_FLICKER || (STATE_LED_FLICKER && LED_FLICKER_ON)) {
           // turn on LED
-          color1 = strip.gamma32(strip.ColorHSV(STATE_LED_HUE));
-          color2 = strip.gamma32(strip.ColorHSV(STATE_LED_HUE + 16384));
-          color3 = strip.gamma32(strip.ColorHSV(STATE_LED_HUE + 32768));
-          color4 = strip.gamma32(strip.ColorHSV(STATE_LED_HUE + 49152));
+          color1 = strip.gamma32(strip.ColorHSV(STATE_LED_HUE, SET_LED_SATURATION, SET_LED_VALUE));
+          color2 = strip.gamma32(strip.ColorHSV(STATE_LED_HUE + 16384, SET_LED_SATURATION, SET_LED_VALUE));
+          color3 = strip.gamma32(strip.ColorHSV(STATE_LED_HUE + 32768, SET_LED_SATURATION, SET_LED_VALUE));
+          color4 = strip.gamma32(strip.ColorHSV(STATE_LED_HUE + 49152, SET_LED_SATURATION, SET_LED_VALUE));
           // color offset of each strip is 90 deg
           strip.setPixelColor(0, color1);
           strip.setPixelColor(1, color2);

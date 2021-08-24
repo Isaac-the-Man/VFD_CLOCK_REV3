@@ -1,10 +1,10 @@
 /*
- * IVL2-7/5 VFD CLOCK REV 3.1 SOFTWARE
- * WRITTEN BY ISAAC_THE_MAN
- * SEE PROJECT ON https://github.com/Isaac-the-Man/VFD_CLOCK_REV3
- * LAST UPDATED 8/21/2021
- * MIT LICENSE
- */
+   IVL2-7/5 VFD CLOCK REV 3.1 SOFTWARE
+   WRITTEN BY ISAAC_THE_MAN
+   SEE PROJECT ON https://github.com/Isaac-the-Man/VFD_CLOCK_REV3
+   LAST UPDATED 8/21/2021
+   MIT LICENSE
+*/
 #include <DS3231M.h>  // Include the DS3231M RTC library
 #include <Adafruit_NeoPixel.h>  // RGB LED library
 #include <EEPROM.h> // read/write user settings
@@ -26,6 +26,9 @@ const int SET_POWER_SAVING_LUMIN = 205;
 const int SET_POWER_SAVING_LED_LUMIN = 15;
 const int SET_LED_VALUE = 128;
 const int SET_LED_SATURATION = 128;
+const int SET_GREETING_WORDS[] = { -1, -1, -1, -1, 14, 0, 15, 16, -1, 17, 0, 18, -1, 19, 12, 12, -1, 20, 21, 12, -1, -1, -1, -1}; // Now you see me
+const int SET_GREETING_LENGTH = 24;
+const int SET_GREETING_CHAR_DUR = 200;
 
 // VFD display pin
 const int PIN_VFD_DIN = 4;
@@ -56,6 +59,15 @@ const int ALP_C[] = {HIGH, LOW, HIGH, LOW, LOW, HIGH, HIGH};  //10
 const int ALP_H[] = {LOW, HIGH, HIGH, HIGH, HIGH, HIGH, LOW}; //11
 const int ALP_E[] = {HIGH, LOW, HIGH, HIGH, LOW, HIGH, HIGH}; //12
 const int ALP_L[] = {HIGH, LOW, HIGH, LOW, LOW, HIGH, LOW}; //13
+const int ALP_N[] = {LOW, HIGH, HIGH, LOW, HIGH, HIGH, HIGH};  // 14
+const int ALP_W1[] = {HIGH, HIGH, HIGH, LOW, HIGH, HIGH, LOW};  // 15
+const int ALP_W2[] = {HIGH, HIGH, LOW, LOW, HIGH, LOW, LOW};  // 16
+const int ALP_Y[] = {HIGH, HIGH, LOW, HIGH, HIGH, HIGH, LOW};  // 17
+const int ALP_U[] = {HIGH, HIGH, HIGH, LOW, HIGH, HIGH, LOW};  // 18
+const int ALP_S[] = {HIGH, HIGH, LOW, HIGH, LOW, HIGH, HIGH};  // 19
+const int ALP_M1[] = {LOW, HIGH, HIGH, LOW, HIGH, HIGH, HIGH};  // 20
+const int ALP_M2[] = {LOW, HIGH, LOW, LOW, HIGH, LOW, HIGH};  // 21
+
 
 // Time Constants
 const int YEAR = 0;
@@ -98,7 +110,8 @@ int CLOCK_MODE = 0; // 0 for normal clock; 1 for Date; 2 for Year; 3 for Hello
 int CLOCK_DATE_YEAR_MODE = 0; // 0 for DATE, 1 for YEAR
 unsigned long CLOCK_DATE_YEAR_SHOW_TIME = 0;
 unsigned long CLOCK_TEMP_TIME = 0;
-unsigned long CLOCK_HELLO_TIME = 0;
+unsigned long CLOCK_GREETING_TIME = 0;
+int CLOCK_GREETING_INDEX = 0;
 
 // Time Edit Mode temp variables
 int TIME_SET_LEVEL = 0; // indicates which part of the time is in on display: 0 for HH::mm, 1 for Date, 2 for Year
@@ -332,16 +345,22 @@ void writeDisplay() {
           }
           break;
         case 3:
-          // show HELLO
-          if (millis() - CLOCK_HELLO_TIME < SET_CLOCK_SHORT_DUR) {
-            STATE_DISPLAY[0] = 11;
-            STATE_DISPLAY[1] = 12;
+          // show custom greetings
+          if (millis() - CLOCK_GREETING_TIME < SET_GREETING_CHAR_DUR) {
+            STATE_DISPLAY[0] = SET_GREETING_WORDS[CLOCK_GREETING_INDEX];
+            STATE_DISPLAY[1] = SET_GREETING_WORDS[CLOCK_GREETING_INDEX + 1];
             STATE_DISPLAY[2] = -1; // decimal point off
-            STATE_DISPLAY[3] = 13;
-            STATE_DISPLAY[4] = 0;
+            STATE_DISPLAY[3] = SET_GREETING_WORDS[CLOCK_GREETING_INDEX + 2];
+            STATE_DISPLAY[4] = SET_GREETING_WORDS[CLOCK_GREETING_INDEX + 3];
           } else {
-            // go back to normal clock mode
-            CLOCK_MODE = 0;
+            // next word
+            CLOCK_GREETING_INDEX++;
+            CLOCK_GREETING_TIME = millis(); // reset timer
+            if (CLOCK_GREETING_INDEX > SET_GREETING_LENGTH - 4) {
+              // go back to normal clock mode
+              CLOCK_MODE = 0;
+              CLOCK_GREETING_INDEX = 0;
+            }
           }
           break;
         default:
@@ -584,6 +603,46 @@ void loadDisplaySeq(int digit, int num, bool dotTop, bool dotBot) {
         VFD_TEMP[i + 7] = ALP_L[i];
       }
       break;
+    case 14:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = ALP_N[i];
+      }
+      break;
+    case 15:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = ALP_W1[i];
+      }
+      break;
+    case 16:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = ALP_W2[i];
+      }
+      break;
+    case 17:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = ALP_Y[i];
+      }
+      break;
+    case 18:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = ALP_U[i];
+      }
+      break;
+    case 19:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = ALP_S[i];
+      }
+      break;
+    case 20:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = ALP_M1[i];
+      }
+      break;
+    case 21:
+      for (int i = 0; i < 7; ++i) {
+        VFD_TEMP[i + 7] = ALP_M2[i];
+      }
+      break;
   }
 }
 
@@ -683,7 +742,8 @@ void controlClock() {
   } else if (!BTN_LOCK_R && BTN_PREV_VAL_R == HIGH && BTN_VAL_R == LOW) {
     // short R press, display HELLO
     CLOCK_MODE = 3;
-    CLOCK_HELLO_TIME = millis();
+    CLOCK_GREETING_TIME = millis();
+    CLOCK_GREETING_INDEX = 0;
     Serial.println("SHORT PRESS R");
   }
 }
